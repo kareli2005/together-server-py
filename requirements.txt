@@ -4,6 +4,7 @@ flask-cors
 flask-sqlalchemy
 flask-migrate
 flask-socketio
+flask-session
 python-dotenv
 werkzeug
 sqlalchemy

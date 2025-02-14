@@ -3,6 +3,7 @@ from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_socketio import SocketIO
 from flask_migrate import Migrate
+from flask_session import Session
 from .config import Config
 from .libraries.mail_service import MailService
 
@@ -17,6 +18,8 @@ def create_app():
 
     mail_service.init_app(app)
     db.init_app(app)
+    app.config['SESSION_SQLALCHEMY'] = db
+    Session(app)
     socketio.init_app(app, cors_allowed_origins="*")
     migrate.init_app(app, db)
 
