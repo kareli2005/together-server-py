@@ -61,7 +61,7 @@ def register():
         return jsonify({"error": "Please enter email"}), 400
     
     if email != session_email:
-        return jsonify({"error": "Email does not match email, where we sent you this webpage URL"}), 400
+        return jsonify({"error": "Email does not match email, where we sent you this webpage URL", "session_email": session_email, "email": email}), 400
 
     username = data.get('username').strip()
     password = data.get('password').strip()
