@@ -3,19 +3,20 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-
 class Config:
-  SECRET_KEY = os.getenv('SECRET_KEY')
-  SQLALCHEMY_DATABASE_URI = os.getenv('SQLALCHEMY_DATABASE_URI')
-  SQLALCHEMY_TRACK_MODIFICATIONS = False
-  SESSION_TYPE = 'sqlalchemy'
-  SESSION_SQLALCHEMY = None
-  SESSION_PERMANENT = False
-  SESSION_USE_SIGNER = True
-  UPDATE_PASSWORD = os.getenv('UPDATE_PASSWORD')
-  MAIL_USERNAME = os.getenv('MAIL_USERNAME')
-  MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
-  MAIL_SERVER = os.getenv('MAIL_SERVER')
-  MAIL_PORT = 587  
-  MAIL_USE_TLS = True
-  CLIENT_URL='https://together-client.vercel.app/'
+    SECRET_KEY = os.getenv('SECRET_KEY')
+    SQLALCHEMY_DATABASE_URI = os.getenv('SQLALCHEMY_DATABASE_URI')
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+    SESSION_TYPE = 'filesystem'
+    SESSION_FILE_DIR = os.path.join(os.getcwd(), 'flask_sessions')
+    SESSION_PERMANENT = False
+    SESSION_USE_SIGNER = True
+
+    UPDATE_PASSWORD = os.getenv('UPDATE_PASSWORD')
+    MAIL_USERNAME = os.getenv('MAIL_USERNAME')
+    MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
+    MAIL_SERVER = os.getenv('MAIL_SERVER')
+    MAIL_PORT = 587  
+    MAIL_USE_TLS = True
+    CLIENT_URL = 'https://together-client.vercel.app/'

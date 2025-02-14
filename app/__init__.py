@@ -6,6 +6,7 @@ from flask_migrate import Migrate
 from flask_session import Session
 from .config import Config
 from .libraries.mail_service import MailService
+import os
 
 mail_service = MailService()
 db = SQLAlchemy()
@@ -18,9 +19,13 @@ def create_app():
 
     mail_service.init_app(app)
     db.init_app(app)
-    app.config['SESSION_SQLALCHEMY'] = db
     socketio.init_app(app, cors_allowed_origins="*")
     migrate.init_app(app, db)
+    
+    if not os.path.exists(app.config['SESSION_FILE_DIR']):
+        os.makedirs(app.config['SESSION_FILE_DIR'])
+
+    Session(app)
 
     CORS(app, resources={r"/*": {"origins": "*", "supports_credentials": True}})
 
@@ -29,6 +34,5 @@ def create_app():
 
     with app.app_context():
         db.create_all()
-        Session(app)
 
     return app
