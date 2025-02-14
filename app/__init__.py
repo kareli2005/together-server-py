@@ -17,10 +17,10 @@ def create_app():
 
     mail_service.init_app(app)
     db.init_app(app)
-    socketio.init_app(app, cors_allowed_origins=app.config['CLIENT_URL'])
+    socketio.init_app(app, cors_allowed_origins="*")
     migrate.init_app(app, db)
 
-    CORS(app, resources={r"/*": {"origins": app.config['CLIENT_URL'], "supports_credentials": True}})
+    CORS(app, resources={r"/*": {"origins": "*", "supports_credentials": True}})
 
     from . import routes
     app.register_blueprint(routes.bp)
