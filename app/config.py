@@ -14,5 +14,4 @@ class Config:
   MAIL_SERVER = os.getenv('MAIL_SERVER')
   MAIL_PORT = 587  
   MAIL_USE_TLS = True
-  CLIENT_URL='http://localhost:3000'
-  SERVER_URL='http://localhost:5000'
+  CLIENT_URL='https://together-client.vercel.app/'
