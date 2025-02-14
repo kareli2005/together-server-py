@@ -19,9 +19,9 @@ def create_app():
     mail_service.init_app(app)
     db.init_app(app)
     app.config['SESSION_SQLALCHEMY'] = db
-    Session(app)
     socketio.init_app(app, cors_allowed_origins="*")
     migrate.init_app(app, db)
+    Session(app)
 
     CORS(app, resources={r"/*": {"origins": "*", "supports_credentials": True}})
 
