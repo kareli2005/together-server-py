@@ -1,0 +1,12 @@
+flask
+flask-mail
+flask-cors
+flask-sqlalchemy
+flask-migrate
+flask-socketio
+python-dotenv
+werkzeug
+sqlalchemy
+psycopg2
+cloudinary
+pillow
