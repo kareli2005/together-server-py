@@ -25,4 +25,7 @@ def create_app():
     from . import routes
     app.register_blueprint(routes.bp)
 
+    with app.app_context():
+        db.create_all()
+
     return app
