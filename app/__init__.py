@@ -21,7 +21,6 @@ def create_app():
     app.config['SESSION_SQLALCHEMY'] = db
     socketio.init_app(app, cors_allowed_origins="*")
     migrate.init_app(app, db)
-    Session(app)
 
     CORS(app, resources={r"/*": {"origins": "*", "supports_credentials": True}})
 
@@ -30,5 +29,6 @@ def create_app():
 
     with app.app_context():
         db.create_all()
+        Session(app)
 
     return app
