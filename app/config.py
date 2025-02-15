@@ -9,6 +9,7 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     SESSION_TYPE = 'sqlalchemy'
+    SESSION_SQLALCHEMY_TABLE = 'sessions'
     SESSION_PERMANENT = False
     SESSION_USE_SIGNER = True
 
