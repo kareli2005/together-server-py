@@ -224,13 +224,12 @@ def logout():
 
 @bp.route('/home/search', methods=['POST'])
 @jwt_required()
-def search(): 
+def search():
     user_id = get_jwt_identity()
     user = User.query.get(user_id)
 
     if not user:
         return jsonify({"error": "User not found"}), 404
-
 
     data = request.get_json()
     query = data.get('query').strip()
@@ -239,13 +238,14 @@ def search():
 
     users = User.query.filter(
         (User.username.ilike(f'%{query}%')) | (User.email.ilike(f'%{query}%'))
-    ).all() 
+    ).filter(User.id != user_id).all()
 
     if not users:
         return jsonify({"message": "No users found"}), 404
 
     user_list = [user.to_dict() for user in users]
     return jsonify(user_list), 200
+
 
 
 @bp.route('/home/get_chat', methods=['POST'])
