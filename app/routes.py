@@ -337,3 +337,13 @@ def seen_chat():
     db.session.commit()
 
     return jsonify({"message": "Chat marked as seen"}), 200
+
+@bp.route('/test_session')
+def test_session():
+    session['test'] = 'This is a test'
+    return jsonify({"message": "Session set: " + session.get('test')})
+
+@bp.route('/get_session')
+def get_session():
+    test_value = session.get('test')
+    return jsonify({"test_value": test_value})

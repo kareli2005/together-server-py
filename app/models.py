@@ -52,3 +52,11 @@ class Message(db.Model):
             'seen': self.seen
         }
 
+class Session(db.Model):
+    __tablename__ = 'sessions'
+    id = db.Column(db.String(255), primary_key=True)
+    data = db.Column(db.JSON)
+    expiry = db.Column(db.DateTime)
+
+    def __repr__(self):
+        return f"<Session {self.id}>"
