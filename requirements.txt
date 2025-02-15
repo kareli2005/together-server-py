@@ -11,3 +11,5 @@ sqlalchemy
 psycopg2
 cloudinary
 pillow
+flask_jwt_extended
+pyjwt

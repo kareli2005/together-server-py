@@ -1,33 +1,43 @@
-from flask import Blueprint, request, jsonify, session, current_app
+from flask import Blueprint, request, jsonify, current_app
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from werkzeug.security import generate_password_hash, check_password_hash
 from uuid import uuid4
+import datetime
 from .models import User, Message
-from . import db
+from . import db, jwt
 from . import mail_service
 from .libraries.image import Image
-
+import jwt as pyjwt
 
 bp = Blueprint('routes', __name__)
 
-
 @bp.route('/auth/get_started', methods=['POST'])
 def get_started():
-  data = request.get_json()
-  email = data.get('email')
+    data = request.get_json()
+    email = data.get('email')
 
-  if not email:
-    return jsonify({"error": "Email is required"}), 400
-  
-  existing_user = User.query.filter_by(email=email).first()
+    if not email:
+        return jsonify({"error": "Email is required"}), 400
+    
+    existing_user = User.query.filter_by(email=email).first()
 
-  if existing_user:
-    return jsonify({"error": "Email is already registered"}), 400
-  
-  session['email'] = email
+    if existing_user:
+        return jsonify({"error": "Email is already registered"}), 400
+    
+    client_url = current_app.config['CLIENT_URL']
+    jwt_secret = current_app.config['JWT_SECRET_KEY']
 
-  client_url = current_app.config['CLIENT_URL']
-  registration_link = f"{client_url}/register?email={email}"
-  html = f"""
+    if not jwt_secret:
+        return jsonify({"error": "JWT secret key is not configured"}), 500
+
+    
+    token = pyjwt.encode({
+        "email": email,
+        "exp": datetime.datetime.now() + datetime.timedelta(hours=1)
+    }, jwt_secret, algorithm="HS256")
+    
+    registration_link = f"{client_url}/register?email={email}&token={token}"
+    html = f"""
     <html>
       <body>
         <h1>Welcome to Our Service</h1>
@@ -35,33 +45,42 @@ def get_started():
         <a href="{registration_link}">Click here to register</a>
       </body>
     </html>
-  """
+    """
 
-  try:
-    success = mail_service.send_mail(
-      subject="Welcome to our service!",
-      recipients=[email],
-      body="Please check your email to complete the registration process.",
-      html=html
-    )
-    if success:
-      return jsonify({"message": "Mail Sent Successfully"}), 200
-    else:
-      return jsonify({'error': 'Error occurred while sending mail'}), 500
-  except Exception as e:
-    return jsonify({"error": f"An error occurred: {str(e)}"}), 500
+    try:
+        success = mail_service.send_mail(
+            subject="Welcome to our service!",
+            recipients=[email],
+            body="Please check your email to complete the registration process.",
+            html=html
+        )
+        if success:
+            return jsonify({"message": "Mail Sent Successfully"}), 200
+        else:
+            return jsonify({'error': 'Error occurred while sending mail'}), 500
+    except Exception as e:
+        return jsonify({"error": f"An error occurred: {str(e)}"}), 500
+
 
 @bp.route('/auth/register', methods=['POST'])
 def register():
-    session_email = session.get('email')
-
     data = request.get_json()
-    email = data.get('email').strip()
+    email = data.get('email')
+    token = data.get('token')
+
     if not email:
         return jsonify({"error": "Please enter email"}), 400
-    
-    if email != session_email:
-        return jsonify({"error": "Email does not match email, where we sent you this webpage URL", "session_email": session_email, "email": email}), 400
+
+    if not token:
+        return jsonify({"error": "Token is required"}), 400
+
+    try:
+        jwt_secret = current_app.config['JWT_SECRET_KEY']
+        decoded_token = pyjwt.decode(token, jwt_secret, algorithms=["HS256"])
+        if decoded_token['email'] != email:
+            return jsonify({"error": "Invalid access token or email"}), 400
+    except Exception as e:
+        return jsonify({"error": "Invalid or expired token", "message": str(e)}), 400
 
     username = data.get('username').strip()
     password = data.get('password').strip()
@@ -77,7 +96,6 @@ def register():
         return jsonify({"error": "Email is already registered"}), 400
 
     hashed_password = generate_password_hash(password)
-
     id = uuid4().hex
     user = User(id=id, username=username, email=email, password=hashed_password)
 
@@ -94,10 +112,13 @@ def register():
     db.session.add(user)
     db.session.commit()
 
-    session['user_id'] = user.id
-    session.pop('email', None)
+    access_token = create_access_token(identity=user.id)
 
-    return jsonify({"message": "User registered successfully", "user": user.to_dict()}), 200
+    return jsonify({
+        "message": "User registered successfully", 
+        "user": user.to_dict(), 
+        "access_token": access_token
+    }), 200
 
 @bp.route('/auth/login', methods=['POST'])
 def login():
@@ -116,18 +137,20 @@ def login():
         return jsonify({"error": "Email not registered"}), 400
     if not check_password_hash(user.password, password):
         return jsonify({"error": "Wrong Password"}), 400
-    
 
-    session['user_id'] = user.id
+    access_token = create_access_token(identity=user.id)
 
-    return jsonify({"message": "Login successful"}), 200
+    return jsonify({
+        "message": "Login successful", 
+        "access_token": access_token
+    }), 200
+
 
 @bp.route('/home/get_data', methods=['GET'])
+@jwt_required()
 def get_data():
-    if 'user_id' not in session:
-        return jsonify({"error": "Auth failed"}), 401
+    user_id = get_jwt_identity()
 
-    user_id = session['user_id']
     user = User.query.get(user_id)
 
     if not user:
@@ -186,28 +209,28 @@ def get_data():
 
 
 @bp.route('/auth/logout', methods=['GET'])
+@jwt_required()
 def logout():
-    if 'user_id' not in session:
-        return jsonify({"message": "No active session"}), 400
-
-    user_id = session['user_id']
-
+    user_id = get_jwt_identity()
     user = User.query.get(user_id)
 
     if not user:
-        return jsonify({"message": "User not found"}), 404
-
+        return jsonify({"error": "User not found"}), 404    
+    
     user.status = False
     db.session.commit()
-
-    session.pop('user_id', '')
     return jsonify({"message": "Logged out successfully"}), 200
 
 
 @bp.route('/home/search', methods=['POST'])
+@jwt_required()
 def search(): 
-    if 'user_id' not in session:
-        return jsonify({"error": "Auth failed"}), 401
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
 
     data = request.get_json()
     query = data.get('query').strip()
@@ -226,9 +249,13 @@ def search():
 
 
 @bp.route('/home/get_chat', methods=['POST'])
+@jwt_required()
 def get_chat():
-    if 'user_id' not in session:
-        return jsonify({"error": "Auth failed"}), 401
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+
+    if not user:
+        return jsonify({"error": "User not found"}), 404
     
     data = request.get_json()
     chat_id = data.get('chat_id', '').strip()
@@ -236,19 +263,15 @@ def get_chat():
     if not chat_id:
         return jsonify({"error": "No chat provided"}), 400
     
-    user_id = session['user_id']
 
     other_user_id = None
 
     try:
-        # Split the chat_id to get the two user IDs
         user1, user2 = chat_id.split('_')
 
-        # Check if the user is trying to chat with themselves
         if user1 == user2:
             return jsonify({"error": "You cannot chat with yourself"}), 403
         
-        # Ensure the user is part of the chat
         if user1 != user_id and user2 != user_id:
             return jsonify({"error": "You are not in this chat"}), 403
         
@@ -288,9 +311,13 @@ def get_chat():
 
 
 @bp.route('/home/send_message', methods=['POST'])
+@jwt_required()
 def send_message():
-    if 'user_id' not in session:
-        return jsonify({"error": "Auth failed"}), 401
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+
+    if not user:
+        return jsonify({"error": "User not found"}), 404
 
     data = request.get_json()
     if not data.get('content') or not data.get('sender') or not data.get('receiver'):
@@ -314,17 +341,19 @@ def send_message():
         return jsonify({"error": str(e)}), 500
     
 @bp.route('/home/seen_chat', methods=['POST'])
+@jwt_required()
 def seen_chat():
-    if 'user_id' not in session:
-        return jsonify({"error": "Auth failed"}), 401
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+
+    if not user:
+        return jsonify({"error": "User not found"}), 404
 
     data = request.get_json()
     chat_id = data.get('chat_id', '').strip()
 
     if not chat_id:
         return jsonify({"error": "No chat provided"}), 400
-
-    user_id = session['user_id']
 
     unseen_messages = Message.query.filter_by(chat_id=chat_id, receiver=user_id, seen=False).all()
 
@@ -337,13 +366,3 @@ def seen_chat():
     db.session.commit()
 
     return jsonify({"message": "Chat marked as seen"}), 200
-
-@bp.route('/test_session')
-def test_session():
-    session['test'] = 'This is a test'
-    return jsonify({"message": "Session set: " + session.get('test')})
-
-@bp.route('/get_session')
-def get_session():
-    test_value = session.get('test')
-    return jsonify({"test_value": test_value})
